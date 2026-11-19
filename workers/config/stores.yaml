@@ -1,0 +1,110 @@
+# Store registry. `pricewatch stores sync` copies this into the `stores` table.
+#
+# Adding a store:
+#   1. Pick an adapter (`pricewatch adapters` lists them). Most stores need only config here.
+#   2. If none fits, write one file in workers/plugins/ (see example_lb_app_api.py).
+#   3. Test without a database:  pricewatch try --store <slug> --limit 20
+#   4. Set active: true, then `pricewatch stores sync`.
+# Secrets: write ${ENV_VAR}; the value is read from the environment at run time and never stored.
+# Before enabling a real store, check its terms of use and robots.txt, or ask for a data feed.
+
+stores:
+  # ---- Demo stores (fictional, offline fixtures). Inactive so they never reach the real
+  #      database; `pricewatch try --store demo-cedar-mart` still runs them. -------------
+  - slug: demo-cedar-mart
+    name_en: Cedar Mart (demo)
+    name_ar: سيدر مارت (تجريبي)
+    adapter: demo_fixture
+    active: false
+    pricing_scope: branch
+    rate_limit_rps: 10
+    config:
+      fixture: fixtures/demo_cedar_mart.json
+
+  - slug: demo-bayt-market
+    name_en: Bayt Market (demo)
+    name_ar: بيت ماركت (تجريبي)
+    adapter: demo_fixture
+    active: false
+    rate_limit_rps: 10
+    config:
+      fixture: fixtures/demo_bayt_market.json
+
+  # ---- Templates for real integrations (inactive until filled in) ---------------
+  - slug: example-shopify-store
+    name_en: Example Shopify Store
+    name_ar: متجر شوبيفاي (مثال)
+    adapter: shopify
+    active: false
+    rate_limit_rps: 0.5
+    config:
+      base_url: https://shop.example.com
+      currency: USD
+      skip_product_types: [Gift Card]
+      flyers:                       # optional: weekly flyers linked from a page
+        adapter: flyer_links
+        page_url: https://shop.example.com/pages/offers
+
+  - slug: example-woocommerce-store
+    name_en: Example WooCommerce Store
+    name_ar: متجر ووكومرس (مثال)
+    adapter: woocommerce_store_api
+    active: false
+    config:
+      base_url: https://store.example.com
+
+  - slug: example-json-api-store
+    name_en: Example JSON API Store
+    name_ar: متجر بواجهة JSON (مثال)
+    adapter: json_api
+    active: false
+    pricing_scope: branch
+    config:
+      url: https://api.example.com/v2/branches/{branch}/products
+      headers: { Authorization: "Bearer ${EXAMPLE_STORE_TOKEN}" }
+      items_path: data.items
+      currency: LBP
+      pagination: { type: page, param: page, size_param: per_page, size: 100 }
+      fields:
+        external_id: id
+        name: title.ar
+        price: pricing.current
+        regular_price: pricing.original
+        brand: brand.name
+        size_text: package
+        gtin: barcode
+        in_stock: availability.in_stock
+        image_url: images.0.url
+        category: category.name
+      branch_placeholder_values: ["12", "15"]
+      branches:
+        - { external_id: "12", name_en: "Achrafieh", lat: 33.8886, lng: 35.5197, region_slug: beirut }
+        - { external_id: "15", name_en: "Jdeideh",   lat: 33.8946, lng: 35.5636, region_slug: metn }
+
+  - slug: example-html-store
+    name_en: Example HTML Store
+    name_ar: متجر HTML (مثال)
+    adapter: html_css
+    active: false
+    config:
+      start_urls: [https://www.example.com/groceries]
+      item_selector: div.product-card
+      fields:
+        name: h3.product-title
+        price: span.price-now
+        regular_price: span.price-old
+        size_text: span.size
+        url: a.product-link@href
+        image_url: img@src
+        stock: span.stock
+      next_page_selector: a.next@href
+      render_js: false
+
+  - slug: example-lb-app
+    name_en: Example Lebanese App (custom plugin)
+    name_ar: تطبيق لبناني (إضافة خاصة)
+    adapter: example_lb_app_api      # defined in workers/plugins/example_lb_app_api.py
+    active: false
+    config:
+      api_base: https://api.example-app.lb
+      zone_ids: [beirut-1, metn-2]

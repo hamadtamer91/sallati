@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #fafaf9;
+  color: #1c1917;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-stone-200 bg-white p-4 shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-stone-700;
+  }
+  .btn-primary {
+    @apply inline-block rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700;
+  }
+  .btn-soft {
+    @apply inline-block rounded-full bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800 hover:bg-emerald-100;
+  }
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+}

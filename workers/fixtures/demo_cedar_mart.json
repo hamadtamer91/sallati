@@ -1,0 +1,117 @@
+{
+ "branches": [
+  {
+   "external_id": "ash",
+   "name_en": "Cedar Mart Achrafieh",
+   "name_ar": "سيدر مارت الأشرفية",
+   "lat": 33.8869,
+   "lng": 35.521,
+   "region_slug": "beirut"
+  },
+  {
+   "external_id": "jdd",
+   "name_en": "Cedar Mart Jdeideh",
+   "name_ar": "سيدر مارت الجديدة",
+   "lat": 33.8936,
+   "lng": 35.5647,
+   "region_slug": "metn"
+  }
+ ],
+ "listings": [
+  {
+   "external_id": "c-1",
+   "name": "Nido Fortified Milk Powder 900g",
+   "brand": "Nido",
+   "price": "$9.75",
+   "gtin": "7613030000907",
+   "category": "Milk",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-1",
+   "name": "Nido Fortified Milk Powder 900g",
+   "brand": "Nido",
+   "price": "$9.45",
+   "gtin": "7613030000907",
+   "category": "Milk",
+   "branch_external_id": "jdd"
+  },
+  {
+   "external_id": "c-2",
+   "name": "Coca-Cola Original 6x330ml",
+   "brand": "Coca-Cola",
+   "price": "3.20",
+   "currency": "USD",
+   "gtin": "5449000000125",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-3",
+   "name": "Coca-Cola Can 330ml",
+   "brand": "Coca-Cola",
+   "price": "0.60",
+   "currency": "USD",
+   "gtin": "5449000000293",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-4",
+   "name": "Almarai Full Fat Milk 1L",
+   "brand": "Almarai",
+   "price": "1.95",
+   "currency": "USD",
+   "regular_price": "2.25",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-5",
+   "name": "Uncle Ben's Long Grain Rice 2 kg",
+   "price": "6.10",
+   "currency": "USD",
+   "gtin": "4010123456789",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-6",
+   "name": "Sohat Natural Water",
+   "size_text": "6 x 1.5L",
+   "brand": "Sohat",
+   "price": "2.40",
+   "currency": "USD",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-7",
+   "name": "Fresh Eggs Large",
+   "size_text": "30 pcs",
+   "price": "5.50",
+   "currency": "USD",
+   "category": "Eggs",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-8",
+   "name": "Tomatoes (per kg)",
+   "price": "1.10",
+   "currency": "USD",
+   "category": "Vegetables",
+   "branch_external_id": "ash"
+  },
+  {
+   "external_id": "c-9",
+   "name": "Ariel Automatic Powder 3 kg",
+   "brand": "Ariel",
+   "price": "11.90",
+   "currency": "USD",
+   "gtin": "8001090123459",
+   "branch_external_id": "jdd"
+  },
+  {
+   "external_id": "c-10",
+   "name": "Broken listing without price",
+   "price": "call us",
+   "branch_external_id": "ash"
+  }
+ ],
+ "flyers": []
+}

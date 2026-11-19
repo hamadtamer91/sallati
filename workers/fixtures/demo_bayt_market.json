@@ -1,0 +1,61 @@
+{
+ "branches": [
+  {
+   "external_id": "dekw",
+   "name_en": "Bayt Market Dekwaneh",
+   "name_ar": "بيت ماركت الدكوانة",
+   "lat": 33.879,
+   "lng": 35.545,
+   "region_slug": "metn"
+  }
+ ],
+ "listings": [
+  {
+   "external_id": "b-101",
+   "name": "حليب نيدو بودرة ٩٠٠ غ",
+   "brand": "نيدو",
+   "price": "845,000 ل.ل",
+   "gtin": "7613030000907"
+  },
+  {
+   "external_id": "b-102",
+   "name": "كوكا كولا ٦ × ٣٣٠ مل",
+   "price": "275.000 ل.ل"
+  },
+  {
+   "external_id": "b-103",
+   "name": "حليب المراعي كامل الدسم 1000 مل",
+   "price": "190000",
+   "category": "ألبان"
+  },
+  {
+   "external_id": "b-104",
+   "name": "أرز انكل بنز حبة طويلة ٢ كغ",
+   "brand": "Uncle Bens",
+   "price": "520,000 LBP"
+  },
+  {
+   "external_id": "b-105",
+   "name": "مياه صحة 1.5 ل - 6 حبات",
+   "price": "199000 ل.ل"
+  },
+  {
+   "external_id": "b-106",
+   "name": "بيض طازج كرتونة 30 حبة",
+   "price": "470000 ل.ل"
+  },
+  {
+   "external_id": "b-107",
+   "name": "بندورة بالكيلو",
+   "price": "85,000 ل.ل",
+   "category": "خضار"
+  },
+  {
+   "external_id": "b-108",
+   "name": "لبنة تعنايل 500 غ",
+   "brand": "تعنايل",
+   "price": "$3.25"
+  }
+ ],
+ "flyers": []
+}
