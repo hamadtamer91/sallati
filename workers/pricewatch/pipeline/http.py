@@ -15,7 +15,8 @@ from .robots import Robots
 log = logging.getLogger(__name__)
 
 DEFAULT_UA = "SallatiPriceBot/0.1 (+https://example.com/bot; price comparison for Lebanon)"
-RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+# 507 and the 52x codes (Cloudflare) are usually temporary on small store sites.
+RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504, 507, 520, 521, 522, 523, 524}
 
 
 class RobotsDisallowed(RuntimeError):

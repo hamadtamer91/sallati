@@ -216,6 +216,47 @@ async def test_le_charcutier_adapter_on_real_saved_pages():
     assert a.skipped_no_price == 3                                  # 103035 appears twice but is counted once
 
 
+async def test_le_charcutier_skips_a_broken_product_and_stops_when_site_is_down(monkeypatch):
+    import sys
+    autoload(force=True, plugin_paths=[PLUGINS])
+    fx = Path(__file__).parent / "fixtures" / "le_charcutier"
+    down = {"all": False}
+
+    def handler(req: httpx.Request):
+        path = req.url.path
+        if req.method == "GET":
+            return httpx.Response(200, text=(fx / "category_page.html").read_text())
+        if path == "/shop_filter":
+            body = req.content.decode()
+            return httpx.Response(200, text=(fx / ("list_p2.json" if "offset=3" in body else "list_p1.json")).read_text())
+        if path.startswith("/get_product_details/"):
+            pid = path.split("/")[2]
+            if down["all"] or pid == "101306":                       # same error the live run hit
+                return httpx.Response(507)
+            f = fx / f"get_product_details_{pid}_13.json"
+            return httpx.Response(200, text=f.read_text() if f.exists() else "<div>no price</div>")
+        return httpx.Response(404)
+
+    def fast_client():
+        return PoliteHttpClient(rate_per_sec=1000, burst=100, respect_robots=False, max_retries=1,
+                                transport=httpx.MockTransport(handler))
+
+    async def no_sleep(_):
+        return None
+    monkeypatch.setattr("pricewatch.pipeline.http.asyncio.sleep", no_sleep)
+
+    a = build_adapter("le_charcutier", AdapterContext("lc", {"departments": ["grocery-foods"]}, fast_client()))
+    items = [x async for x in a.iter_listings()]
+    assert {i.external_id for i in items} == {"105563"}            # the broken one is skipped, the rest kept
+    assert a.failed_requests == 1
+
+    down["all"] = True
+    b = build_adapter("le_charcutier", AdapterContext("lc", {"departments": ["grocery-foods"]}, fast_client()))
+    monkeypatch.setattr(sys.modules[type(b).__module__], "MAX_CONSECUTIVE_ERRORS", 3)
+    with pytest.raises(RuntimeError, match="site looks down"):
+        [x async for x in b.iter_listings()]
+
+
 def test_le_charcutier_prices_normalise():
     from pricewatch.core.normalize import Normalizer
     from pricewatch.core.models import RawListing

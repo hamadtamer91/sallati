@@ -16,6 +16,7 @@ import logging
 import re
 from typing import AsyncIterator
 
+import httpx
 from pydantic import Field
 
 from pricewatch.adapters.base import AdapterConfig, Capabilities, StoreAdapter
@@ -23,6 +24,9 @@ from pricewatch.adapters.registry import register_adapter
 from pricewatch.core.models import Currency, RawBranch, RawListing
 
 log = logging.getLogger(__name__)
+
+# One broken product page must not stop the run; this many failures in a row means the site is down.
+MAX_CONSECUTIVE_ERRORS = 15
 
 CARD = re.compile(r'<div class="col-xs-4 category-box">(.*?)(?=<div class="col-xs-4 category-box">|\Z)', re.S)
 CARD_ID = re.compile(r"product_details\('(\d+)','(\d+)'\)")
@@ -79,6 +83,7 @@ class LeCharcutierAdapter(StoreAdapter):
     _token: str | None = None
     skipped_variants = 0
     skipped_no_price = 0
+    failed_requests = 0
 
     # --- session ------------------------------------------------------------------
     async def _open(self, path: str) -> str:
@@ -157,18 +162,38 @@ class LeCharcutierAdapter(StoreAdapter):
 
         seen: set[str] = set()
         produced = 0
+        consecutive = 0
+
+        def failed(what: str, err: Exception) -> None:
+            nonlocal consecutive
+            self.failed_requests += 1
+            consecutive += 1
+            log.warning("le_charcutier: %s failed (%s), skipped", what, err)
+            if consecutive >= MAX_CONSECUTIVE_ERRORS:
+                raise RuntimeError(f"{consecutive} requests in a row failed; site looks down") from err
+
         for slug in self.cfg.departments:
             page_url = f"{self.cfg.base_url}/shop/{slug}"
-            page = await self._open(f"/shop/{slug}")
+            try:
+                page = await self._open(f"/shop/{slug}")
+            except httpx.HTTPError as e:
+                failed(f"department {slug}", e)
+                continue
+            consecutive = 0
             cat = re.search(r'id="cat_filter"[^>]*value="(\d+)"', page)
             if not cat:
                 log.warning("department %s: category id not found (page layout changed?)", slug)
                 continue
             offset, total = 0, None
             while total is None or offset < total:
-                data = json.loads(await self._post("/shop_filter", {
-                    "category": cat.group(1), "price": "1", "sorting": "most_popular", "offset": str(offset),
-                }, page_url))
+                try:
+                    data = json.loads(await self._post("/shop_filter", {
+                        "category": cat.group(1), "price": "1", "sorting": "most_popular", "offset": str(offset),
+                    }, page_url))
+                except (httpx.HTTPError, ValueError) as e:
+                    failed(f"department {slug} page at {offset}", e)
+                    break
+                consecutive = 0
                 total = int(data.get("total_products_count") or 0)
                 current = int(data.get("current_products_count") or 0)
                 cards = self.parse_cards(data.get("shop_filter", ""), slug)
@@ -182,8 +207,13 @@ class LeCharcutierAdapter(StoreAdapter):
                     if card["variant"] and not self.cfg.include_variants:
                         self.skipped_variants += 1
                         continue
-                    details = await self._post(f"/get_product_details/{card['id']}/{self.cfg.price_zone}",
-                                               {}, page_url)
+                    try:
+                        details = await self._post(
+                            f"/get_product_details/{card['id']}/{self.cfg.price_zone}", {}, page_url)
+                    except httpx.HTTPError as e:
+                        failed(f"product {card['id']}", e)
+                        continue
+                    consecutive = 0
                     price, old, in_stock = self.parse_details(details)
                     if price is None or not card["name"]:
                         self.skipped_no_price += 1
@@ -197,5 +227,5 @@ class LeCharcutierAdapter(StoreAdapter):
                     produced += 1
                     if self.cfg.max_products and produced >= self.cfg.max_products:
                         return
-        log.info("le_charcutier: %d products, %d multi-variant skipped, %d without price",
-                 produced, self.skipped_variants, self.skipped_no_price)
+        log.info("le_charcutier: %d products, %d multi-variant skipped, %d without price, %d failed requests",
+                 produced, self.skipped_variants, self.skipped_no_price, self.failed_requests)
