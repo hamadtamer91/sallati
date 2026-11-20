@@ -6,15 +6,16 @@ import re
 import sys
 import time
 from urllib.parse import urljoin
-from urllib.robotparser import RobotFileParser
 
 import httpx
+
+from pricewatch.pipeline.robots import Robots
 
 BASE = sys.argv[1].rstrip("/")
 STORE = sys.argv[2] if len(sys.argv) > 2 else "default"
 UA = "SallatiPriceBot/0.1 (price comparison for Lebanon)"
 c = httpx.Client(headers={"User-Agent": UA, "Accept-Language": "en,ar"}, timeout=40, follow_redirects=True)
-rp = RobotFileParser()
+rp: Robots | None = None
 
 
 def show(title, body):
@@ -23,7 +24,7 @@ def show(title, body):
 
 def get(path, **kw):
     url = urljoin(BASE + "/", path.lstrip("/"))
-    if not rp.can_fetch(UA, url):
+    if rp is None or not rp.allowed(url):
         show(path, "SKIPPED: disallowed by robots.txt")
         return None
     time.sleep(2)
@@ -36,7 +37,7 @@ def get(path, **kw):
 
 r = c.get(BASE + "/robots.txt")
 show("robots.txt", f"HTTP {r.status_code}\n{r.text[:4000]}")
-rp.parse(r.text.splitlines() if r.status_code < 400 else [])
+rp = Robots(r.text if r.status_code < 400 else "", UA)
 
 for path in (f"/{STORE}/terms-of-use/", f"/{STORE}/disclaimer/"):
     r = get(path)

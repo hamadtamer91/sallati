@@ -158,3 +158,18 @@ async def test_robots_and_retry():
             await http.get_text("https://s.lb/private/x")
     finally:
         h.asyncio.sleep = orig
+
+
+def test_robots_wildcards_like_spinneys():
+    from pricewatch.pipeline.robots import Robots
+
+    txt = "User-agent: *\nDisallow: /index.php/\nDisallow: /*?*\nDisallow: /*.php$\nDisallow: /catalog/\n" \
+          "Allow: /catalog/public$\n\nUser-agent: BadBot\nDisallow: /\n"
+    r = Robots(txt, "SallatiPriceBot/0.1 (+x)")
+    assert r.allowed("https://s.lb/default/promotions.html")
+    assert not r.allowed("https://s.lb/default/promotions.html?p=2")          # query strings blocked
+    assert not r.allowed("https://s.lb/default/promotions.html?product_list_limit=36")
+    assert not r.allowed("https://s.lb/x/info.php") and r.allowed("https://s.lb/x/info.php5")
+    assert not r.allowed("https://s.lb/catalog/abc") and r.allowed("https://s.lb/catalog/public")
+    assert not Robots(txt, "BadBot/1.0").allowed("https://s.lb/anything")
+    assert Robots("", "x").allowed("https://s.lb/a?b")

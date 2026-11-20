@@ -7,9 +7,10 @@ import random
 import time
 from typing import Any
 from urllib.parse import urlsplit
-from urllib.robotparser import RobotFileParser
 
 import httpx
+
+from .robots import Robots
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class PoliteHttpClient:
             headers={"User-Agent": user_agent, "Accept-Language": "ar,en;q=0.8", **(headers or {})},
         )
         self._buckets: dict[str, TokenBucket] = {}
-        self._robots: dict[str, RobotFileParser | None] = {}
+        self._robots: dict[str, Robots | None] = {}
         self.rate, self.burst = rate_per_sec, burst
         self.max_retries = max_retries
         self.respect_robots = respect_robots
@@ -65,18 +66,16 @@ class PoliteHttpClient:
         parts = urlsplit(url)
         origin = f"{parts.scheme}://{parts.netloc}"
         if origin not in self._robots:
-            rp: RobotFileParser | None = RobotFileParser()
+            rules: Robots | None = None
             try:
                 r = await self._client.get(f"{origin}/robots.txt")
-                if r.status_code >= 400:
-                    rp = None  # no robots.txt -> allowed
-                else:
-                    rp.parse(r.text.splitlines())
+                if r.status_code < 400:
+                    rules = Robots(r.text, self.user_agent)
             except httpx.HTTPError:
-                rp = None
-            self._robots[origin] = rp
-        rp = self._robots[origin]
-        return rp is None or rp.can_fetch(self.user_agent, url)
+                rules = None  # unreachable robots.txt -> treated as no restrictions
+            self._robots[origin] = rules
+        rules = self._robots[origin]
+        return rules is None or rules.allowed(url)
 
     async def request(self, method: str, url: str, **kw: Any) -> httpx.Response:
         if not await self._allowed(url):
