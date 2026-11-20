@@ -1,78 +1,112 @@
-"""One-off reconnaissance for a new store: robots.txt, terms, and which data access works.
-Respects robots.txt: any path it disallows is skipped. Very low request count.
-Usage: python site_probe.py https://www.example.com [magento_store_code]
+"""Read-only reconnaissance before writing a store adapter.
+
+For each site: robots.txt, terms-of-use clauses about automated/commercial use, platform
+fingerprint, which public data endpoints answer, sitemap. Every path is checked against
+robots.txt first (wildcard-aware) and skipped if disallowed. ~10 requests per site.
+Usage: python site_probe.py https://a.com https://b.com ...
 """
 import re
 import sys
 import time
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
 from pricewatch.pipeline.robots import Robots
 
-BASE = sys.argv[1].rstrip("/")
-STORE = sys.argv[2] if len(sys.argv) > 2 else "default"
 UA = "SallatiPriceBot/0.1 (price comparison for Lebanon)"
-c = httpx.Client(headers={"User-Agent": UA, "Accept-Language": "en,ar"}, timeout=40, follow_redirects=True)
-rp: Robots | None = None
+CLAUSE = re.compile(
+    r"[^.]{0,200}(scrap|robot|crawl|automat|spider|data.?min|harvest|extract|reproduc|copy|commercial|"
+    r"mirror|frame|aggregat|استخراج|نسخ|تجاري)[^.]{0,200}\.", re.I)
+TERMS_LINK = re.compile(r'href="([^"]*(?:term|condition|legal|policy|disclaimer|usage|شروط)[^"]*)"', re.I)
+FINGERPRINTS = {
+    "magento": ("Magento_", "mage/cookies", "/static/version"),
+    "shopify": ("cdn.shopify.com", "Shopify.theme"),
+    "woocommerce": ("woocommerce", "wp-content"),
+    "nextjs": ("__NEXT_DATA__", "/_next/static"),
+    "sap-hybris": ("/_ui/", "ACC.config", "hybris"),
+    "nuxt": ("__NUXT__", "/_nuxt/"),
+    "angular": ("ng-version",),
+    "wordpress": ("wp-json",),
+}
 
 
-def show(title, body):
-    print(f"\n===== {title} =====\n{body}", flush=True)
+def text_of(html: str) -> str:
+    html = re.sub(r"(?s)<(script|style).*?</\1>", " ", html)
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
 
 
-def get(path, **kw):
-    url = urljoin(BASE + "/", path.lstrip("/"))
-    if rp is None or not rp.allowed(url):
-        show(path, "SKIPPED: disallowed by robots.txt")
-        return None
-    time.sleep(2)
+def survey(base: str) -> None:
+    base = base.rstrip("/")
+    print(f"\n\n################ {base} ################", flush=True)
+    c = httpx.Client(headers={"User-Agent": UA, "Accept-Language": "en,ar"}, timeout=30, follow_redirects=True)
     try:
-        return c.request(kw.pop("method", "GET"), url, **kw)
+        r = c.get(base + "/robots.txt")
+        robots_txt = r.text if r.status_code < 400 and "<html" not in r.text[:200].lower() else ""
     except httpx.HTTPError as e:
-        show(path, f"ERROR {e!r}")
-        return None
+        print("robots.txt ERROR", repr(e))
+        return
+    print(f"== robots.txt HTTP {r.status_code}\n{robots_txt[:1500] or '(none)'}")
+    rules = Robots(robots_txt, UA)
+
+    def get(path: str, **kw):
+        url = path if path.startswith("http") else urljoin(base + "/", path.lstrip("/"))
+        if not rules.allowed(url):
+            print(f"== {url}: SKIPPED (robots.txt)")
+            return None
+        time.sleep(2)
+        try:
+            return c.request(kw.pop("method", "GET"), url, **kw)
+        except httpx.HTTPError as e:
+            print(f"== {url}: ERROR {e!r}")
+            return None
+
+    home = get("/")
+    if home is None:
+        return
+    html = home.text
+    final = str(home.url)
+    print(f"== home HTTP {home.status_code} final={final} bytes={len(html)} "
+          f"challenge={'cf-chl' in html or 'captcha' in html.lower() or 'just a moment' in html.lower()}")
+    print("== platform:", [k for k, sigs in FINGERPRINTS.items() if any(s in html for s in sigs)] or "unknown")
+    print("== prices on home:", re.findall(r"(?:\$\s?\d+[.,]\d{2}|LBP\s?[\d,.]+|[\d,.]+\s?(?:LBP|ل\.ل))", html)[:6])
+
+    links = []
+    for href in TERMS_LINK.findall(html):
+        u = urljoin(final, href)
+        if urlsplit(u).netloc == urlsplit(final).netloc and u not in links:
+            links.append(u)
+    print("== terms links:", links[:6] or "none found on home page")
+    for u in links[:3]:
+        r = get(u)
+        if r is not None:
+            t = text_of(r.text)
+            hits = [m.group(0).strip() for m in CLAUSE.finditer(t)][:8]
+            print(f"== terms {u} HTTP {r.status_code} chars={len(t)}")
+            for h in hits:
+                print("   -", h[:400])
+
+    host = urlsplit(final).scheme + "://" + urlsplit(final).netloc
+    checks = [
+        ("shopify products.json", "GET", f"{host}/products.json?limit=1", None),
+        ("woo store api", "GET", f"{host}/wp-json/wc/store/v1/products?per_page=1", None),
+        ("magento graphql", "POST", f"{host}/graphql",
+         {"query": "{ products(search: \"milk\", pageSize: 1) { total_count items { name sku } } }"}),
+    ]
+    for name, method, url, body in checks:
+        r = get(url, method=method, json=body) if body else get(url)
+        if r is not None:
+            print(f"== {name}: HTTP {r.status_code} {r.headers.get('content-type', '')[:40]} :: {r.text[:300]!r}")
+
+    for sm in re.findall(r"(?im)^sitemap:\s*(\S+)", robots_txt)[:2] or [f"{host}/sitemap.xml"]:
+        r = get(sm)
+        if r is not None:
+            print(f"== sitemap {sm}: HTTP {r.status_code} :: {r.text[:400]!r}")
 
 
-r = c.get(BASE + "/robots.txt")
-show("robots.txt", f"HTTP {r.status_code}\n{r.text[:4000]}")
-rp = Robots(r.text if r.status_code < 400 else "", UA)
-
-for path in (f"/{STORE}/terms-of-use/", f"/{STORE}/disclaimer/"):
-    r = get(path)
-    if r is not None:
-        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", re.sub(r"(?s)<(script|style).*?</\1>", " ", r.text)))
-        hits = [m.group(0).strip() for m in re.finditer(
-            r"[^.]{0,220}(scrap|robot|crawl|automat|spider|data.?min|harvest|extract|reproduc|copy|commercial)[^.]{0,220}\.",
-            text, re.I)]
-        show(f"terms {path} HTTP {r.status_code} chars={len(text)}", "\n- ".join([""] + hits[:20]) or "(no matching clauses)")
-
-q = ('{ products(search: "milk", pageSize: 3) { total_count page_info { total_pages } items { sku name '
-     'url_key stock_status price_range { minimum_price { regular_price { value currency } '
-     'final_price { value currency } } } } } }')
-for ep in ("/graphql", f"/{STORE}/graphql"):
-    r = get(ep, method="POST", json={"query": q}, headers={"Store": STORE, "Content-Type": "application/json"})
-    if r is not None:
-        show(f"graphql POST {ep}", f"HTTP {r.status_code} {r.headers.get('content-type')}\n{r.text[:1800]}")
-
-r = get(f"/rest/{STORE}/V1/products?searchCriteria[pageSize]=2")
-if r is not None:
-    show("rest products", f"HTTP {r.status_code}\n{r.text[:800]}")
-
-for p in ("/sitemap.xml", "/pub/media/sitemap.xml", "/media/sitemap.xml", f"/{STORE}/sitemap.xml"):
-    r = get(p)
-    if r is not None:
-        show(f"sitemap {p}", f"HTTP {r.status_code} {r.headers.get('content-type')}\n{r.text[:600]}")
-
-r = get(f"/{STORE}/promotions.html?product_list_limit=36")
-if r is not None:
-    html = r.text
-    show("category page /promotions.html", f"HTTP {r.status_code} bytes={len(html)} "
-         f"product-item={html.count('product-item-info')} data-price-amount={html.count('data-price-amount')} "
-         f"old-price={html.count('old-price')} cloudflare={'cf-' in html.lower()}")
-    i = html.find("product-item-info")
-    show("first product block", html[max(0, i - 200): i + 2500] if i >= 0 else html[:1500])
-    for pat in (r'"currencyCode"\s*:\s*"(\w+)"', r'data-price-type="(\w+)"', r'"priceFormat"\s*:\s*\{[^}]{0,200}\}',
-                r'class="toolbar-number">(\d+)</span>', r'href="([^"]+promotions[^"]*\?p=2[^"]*)"'):
-        show(f"pattern {pat}", re.findall(pat, html)[:5])
+if __name__ == "__main__":
+    for site in sys.argv[1:]:
+        try:
+            survey(site)
+        except Exception as e:  # keep going with the other sites
+            print(f"!! {site} failed: {e!r}")
