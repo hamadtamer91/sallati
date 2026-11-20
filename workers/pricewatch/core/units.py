@@ -67,13 +67,32 @@ def _q(value: Decimal) -> Decimal:
     return q.quantize(Decimal(1)) if q == q.to_integral_value() else q.normalize()
 
 
+_BARE_WEIGHT = re.compile(r"^\s*(?:per\s*)?(?:kg|kgs|kilo|كغ|كلغ|كيلو|بالكيلو)\.?\s*$", re.I)
+_BARE_PIECE = re.compile(
+    r"^\s*(?:pc|pcs|piece|pieces|each|unit|bag|box|bunch|pack|packet|tray|jar|bottle|can|roll|"
+    r"حبة|قطعة|كيس|علبة|ربطة|باكيت)\.?\s*$", re.I)
+
+
+def _bare_size(text: str) -> ParsedQuantity | None:
+    """Size fields that are only a unit: "Kg" = sold by weight (price per kg), "BAG" = one item."""
+    if _BARE_WEIGHT.match(text):
+        return ParsedQuantity(Decimal("1000"), BaseUnit.G, 1, True, text.strip())
+    if _BARE_PIECE.match(text):
+        return ParsedQuantity(Decimal("1"), BaseUnit.PIECE, 1, False, text.strip())
+    return None
+
+
 def parse_quantity(*texts: str | None) -> ParsedQuantity | None:
     """Parse the first text that yields a quantity (e.g. size_text first, then the name)."""
-    for text in texts:
+    for i, text in enumerate(texts):
         if text:
             q = _parse_one(to_ascii_digits(text))
             if q:
                 return q
+            if i == 0:  # only a dedicated size field may be a bare unit
+                bare = _bare_size(text)
+                if bare:
+                    return bare
     return None
 
 

@@ -138,3 +138,12 @@ def test_similar_names_are_not_merged():
     repo.create_canonical(a, a.raw.name, "Lighter Line", None, None)
     r = m.match(_n("Toast Whole Grain 200g", brand="Lighter Line"))
     assert r.canonical_id is None and r.create_new and r.review_reason == "possible_duplicate"
+
+
+def test_bare_unit_size_fields():
+    kg = parse_quantity("Kg", "Cucumber")
+    assert (kg.unit_size, kg.base_unit, kg.sold_by_weight) == (Decimal("1000"), G, True)
+    bag = parse_quantity("BAG", "MARKOUK FINGERS W/THYME")
+    assert (bag.unit_size, bag.base_unit) == (Decimal("1"), PC)
+    assert parse_quantity(None, "Kg") is None          # a bare unit inside a name is not a size
+    assert parse_quantity("220G").unit_size == Decimal("220")
