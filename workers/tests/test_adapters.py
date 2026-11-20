@@ -173,3 +173,53 @@ def test_robots_wildcards_like_spinneys():
     assert not r.allowed("https://s.lb/catalog/abc") and r.allowed("https://s.lb/catalog/public")
     assert not Robots(txt, "BadBot/1.0").allowed("https://s.lb/anything")
     assert Robots("", "x").allowed("https://s.lb/a?b")
+
+
+async def test_le_charcutier_adapter_on_real_saved_pages():
+    autoload(force=True, plugin_paths=[PLUGINS])
+    fx = Path(__file__).parent / "fixtures" / "le_charcutier"
+    seen_posts = []
+
+    def handler(req: httpx.Request):
+        path = req.url.path
+        if req.method == "GET":
+            return httpx.Response(200, text=(fx / "category_page.html").read_text())
+        seen_posts.append(path)
+        assert req.headers.get("X-CSRF-TOKEN")                      # token taken from the page
+        if path == "/our_branches_ajax":
+            return httpx.Response(200, text=(fx / "branches.json").read_text())
+        if path == "/shop_filter":
+            body = req.content.decode()
+            return httpx.Response(200, text=(fx / ("list_p2.json" if "offset=3" in body else "list_p1.json")).read_text())
+        if path.startswith("/get_product_details/"):
+            pid = path.split("/")[2]
+            f = fx / f"get_product_details_{pid}_13.json"
+            return httpx.Response(200, text=f.read_text() if f.exists() else "<div>no price</div>")
+        return httpx.Response(404)
+
+    a = build_adapter("le_charcutier", AdapterContext(
+        "lc", {"departments": ["grocery-foods"]}, client(handler)))
+    branches = await a.fetch_branches()
+    names = {b.external_id for b in branches}
+    assert len(branches) == 17                                      # 19 listed, 2 bad pins skipped
+    assert "monteverde" not in names and "fanar" not in names
+    ash = next(b for b in branches if b.external_id == "ashrafieh")
+    assert (round(ash.lat, 3), round(ash.lng, 3), ash.region_slug) == (33.892, 35.518, "beirut")
+
+    items = [x async for x in a.iter_listings()]
+    by_id = {i.external_id: i for i in items}
+    assert set(by_id) == {"101306", "105563"}                       # others had no saved price
+    rice = by_id["101306"]
+    assert (rice.name, rice.brand, rice.size_text, rice.price) == ("EGYPTIAN RICE", "Deroni", "5Kg", "LBP 531,024")
+    assert rice.regular_price is None and rice.in_stock             # "LBP 0" strike = no discount
+    assert seen_posts.count("/shop_filter") == 2                    # paginated by offset
+    assert a.skipped_no_price == 3                                  # 103035 appears twice but is counted once
+
+
+def test_le_charcutier_prices_normalise():
+    from pricewatch.core.normalize import Normalizer
+    from pricewatch.core.models import RawListing
+    from decimal import Decimal
+    n = Normalizer(Decimal("89700")).normalize_listing(RawListing(
+        external_id="1", name="EGYPTIAN RICE", brand="Deroni", size_text="5Kg", price="LBP 531,024", currency="LBP"))
+    assert n.price_usd == Decimal("5.9200") and n.quantity.total == Decimal("5000") and n.unit_price_basis == "kg"

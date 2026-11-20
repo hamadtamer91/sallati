@@ -86,6 +86,9 @@ class MemoryRepository:
                 and r["status"] == "success"]
         return [r["stats"]["items_seen"] for r in runs[-limit:]]
 
+    def hours_since_last_run(self, store_id: str, kind: str) -> float | None:
+        return None
+
     # catalogue
     def upsert_branches(self, store_id: str, branches: list[RawBranch]) -> dict[str, str]:
         for b in branches:

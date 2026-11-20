@@ -113,6 +113,12 @@ class PostgresRepository:
             "order by started_at desc limit %s", (store_id, kind, limit)).fetchall()
         return [r["items_seen"] for r in rows]
 
+    def hours_since_last_run(self, store_id: str, kind: str) -> float | None:
+        r = self.conn.execute(
+            "select extract(epoch from now() - max(started_at)) / 3600 as h from scraper_runs "
+            "where store_id=%s and run_kind=%s and status in ('success','partial')", (store_id, kind)).fetchone()
+        return float(r["h"]) if r and r["h"] is not None else None
+
     # ---- catalogue -----------------------------------------------------------
     def upsert_branches(self, store_id: str, branches: list[RawBranch]) -> dict[str, str]:
         for b in branches:

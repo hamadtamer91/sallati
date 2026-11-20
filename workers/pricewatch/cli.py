@@ -84,6 +84,8 @@ def cmd_try(args) -> None:
     repo.upsert_store({**entry, "active": True})
     store = repo.get_store(entry["slug"])
     summary = asyncio.run(Runner(repo).run_catalog(store, limit=args.limit))
+    branches = repo.branch_map(store.id)
+    print(f"branches: {len(branches)} -> {', '.join(sorted(branches))}")
     for sp in list(repo.source_products.values())[: args.limit]:
         offer = next((o for (sid, _), o in repo.offers.items() if sid == sp["id"]), {})
         print(f"{sp['name'][:50]:50} ${offer.get('price_usd')}  unit=${offer.get('unit_price_usd')}  "
@@ -97,6 +99,13 @@ def cmd_run(args) -> None:
     runner = Runner(repo, from_env(), vision=_vision())
     exit_code = 0
     for store in _stores(repo, args):
+        min_h = store.adapter_config.get("min_hours_between_runs")
+        kind = "catalog" if args.kind == "catalog" else "flyer"
+        if min_h and not args.store:
+            age = repo.hours_since_last_run(store.id, kind)
+            if age is not None and age < float(min_h):
+                print(f"{store.slug}: skipped, last {kind} run {age:.1f} h ago (< {min_h} h)")
+                continue
         if args.kind == "catalog":
             if not store.adapter_key or store.adapter_config.get("catalog") is False:
                 continue

@@ -32,6 +32,21 @@ class _Raw(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
 
+# Approximate Lebanese coastline (lat -> westernmost land longitude), with ~3 km margin.
+_COAST = [(33.05, 35.08), (33.27, 35.17), (33.56, 35.33), (33.90, 35.44), (34.10, 35.60),
+          (34.30, 35.63), (34.45, 35.78), (34.70, 35.93)]
+
+
+def coast_min_lng(lat: float) -> float:
+    pts = _COAST
+    if lat <= pts[0][0]:
+        return pts[0][1]
+    for (la1, lo1), (la2, lo2) in zip(pts, pts[1:]):
+        if lat <= la2:
+            return lo1 + (lo2 - lo1) * (lat - la1) / (la2 - la1)
+    return pts[-1][1]
+
+
 class RawBranch(_Raw):
     external_id: str
     name_en: str
@@ -51,9 +66,12 @@ class RawBranch(_Raw):
 
     @field_validator("lng")
     @classmethod
-    def _lng(cls, v: float) -> float:
+    def _lng(cls, v: float, info) -> float:
         if not 35.0 <= v <= 36.7:
             raise ValueError("longitude outside Lebanon")
+        lat = info.data.get("lat")
+        if lat is not None and v < coast_min_lng(lat):
+            raise ValueError("point is in the sea, west of the Lebanese coast")
         return v
 
 

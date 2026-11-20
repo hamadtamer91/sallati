@@ -38,7 +38,7 @@ def default_http_factory(store: StoreRecord) -> PoliteHttpClient:
 
 def split_config(cfg: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Core-level keys are removed before the adapter validates its own config."""
-    main = {k: v for k, v in cfg.items() if k not in {"flyers", "respect_robots", "http_headers"}}
+    main = {k: v for k, v in cfg.items() if k not in {"flyers", "respect_robots", "http_headers", "min_hours_between_runs", "branch_overrides"}}
     return main, cfg.get("flyers")
 
 
@@ -68,7 +68,10 @@ class Runner:
             key = flyer_cfg.get("adapter", "flyer_links")
             cfg = {k: v for k, v in flyer_cfg.items() if k != "adapter"}
             return build_adapter(key, AdapterContext(store.slug, cfg, http))
-        return build_adapter(store.adapter_key, AdapterContext(store.slug, main, http))
+        ctx = AdapterContext(store.slug, main, http)
+        adapter = build_adapter(store.adapter_key, ctx)
+        ctx.config = {**ctx.config, "branch_overrides": store.adapter_config.get("branch_overrides") or {}}
+        return adapter
 
     # ------------------------------------------------------------------ catalog
     async def run_catalog(self, store: StoreRecord, limit: int | None = None) -> RunSummary:

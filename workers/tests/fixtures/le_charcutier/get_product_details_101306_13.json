@@ -1,0 +1,91 @@
+<div id="url_div" style="display:none">
+            https://www.lecharcutier.com/shop/egyptian/318361-egyptian-rice
+        </div>
+				<div class="modal fade" id="productDetails" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+			<div class="modal-dialog modal-md" role="document">
+				<div class="modal-content">
+					<div class="modal-body">
+						<div class="samecontent">
+                          <div class="col-xs-12 col-sm-6 col-md-5 modal-owl sameheight">
+                            <div class="owl-carousel owl-theme">                                                                                           <div class="item  disable-owl-swipe ">
+                                <div class="img-holder bg-white" style="background-image: url('https://www.lecharcutier.com/public/uploads/product/1725430339-354484_main.jpg');"> <img src="https://www.lecharcutier.com/public/frontend/images/products-no-image.png" /> </div>
+                              </div>
+                                                             </div>
+                          </div>
+
+							
+<div class="col-xs-12 col-sm-6 col-md-7 modal-pro-content sameheight">
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                           
+                    
+                            
+				
+                          
+            <div class="modl-pro-head">
+              <p class="brand">Deroni</p>               <h3>EGYPTIAN RICE</h3>
+              <p> 5Kg  </p>
+            </div>
+                            
+                            
+<div class="modl-pro-head text-gray">
+	<ul class="list-inline">
+		<li>
+		<a href="javascript:void(0);" onclick="CopyToClipboard('url_div')"> 
+			<i class="fa fa-clone"></i> Copy Link
+		</a>
+	</li>
+	</ul>
+
+</div>
+                   
+<div class="modl-pro-foot">
+<ul class="list-inline">
+<li>
+<p class="price"> LBP 531,024</p>
+<p> <strike>LBP 0</strike> </p>
+ 
+</li>
+	
+<li> 
+
+	
+		<span class="no_cart_btn_101306"  >
+			<a href="javascript:void(0);" class="btn btn-add-cart add_cart" data-val='101306' data-action='new_add'> Add To Cart 
+				<i class="fa fa-plus"></i> 
+			</a>
+		</span> 
+			
+		<a href="javascript:void(0);" class="btn btn-add-cart btn-item multi_cart_btn_101306"   style="display: none;" > 
+			<i class="fa fa-minus add_cart" data-val="101306" data-action="minus" data-variant-id="0"></i> 
+			<span class="current_items_101306">0 </span> 
+			<i class="fa fa-plus add_cart" data-val="101306" data-action="plus" data-variant-id="0"></i> 
+		</a>
+	
+
+ 
+	
+</li>
+<div class="clearfix"></div>
+</ul>
+</div>
+     
+	
+</div>
+
+		<div class="clearfix"></div>
+		</div>
+		<div class="clearfix"></div>
+	</div>
+</div>
+</div>
+</div>
+		
+<script type="text/javascript">
+
+	$(document).ready(function() {
+		document.title = 'EGYPTIAN RICE | Egyptian | Le Charcutier | Online Groceries Delivery across Lebanon';
+		window.history.pushState('shop', '', url+'/shop/egyptian/318361-egyptian-rice');
+
+	});
+
+</script>

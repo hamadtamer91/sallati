@@ -30,6 +30,20 @@ stores:
     config:
       fixture: fixtures/demo_bayt_market.json
 
+  # ---- Real stores ----------------------------------------------------------------
+  - slug: le-charcutier
+    name_en: Le Charcutier
+    name_ar: لو شاركوتييه
+    website: https://www.lecharcutier.com
+    adapter: le_charcutier            # workers/plugins/le_charcutier.py
+    pricing_scope: chain
+    rate_limit_rps: 1                 # polite: one request per second
+    config:
+      min_hours_between_runs: 20      # full refresh once a day (~3 h at 1 req/s)
+      # departments: [...]            # defaults to food & household (see the adapter)
+      # branch_overrides:             # fix wrong pins published on the site, e.g.
+      #   monteverde: { lat: 33.xxxx, lng: 35.xxxx }
+
   # ---- Templates for real integrations (inactive until filled in) ---------------
   - slug: example-shopify-store
     name_en: Example Shopify Store
