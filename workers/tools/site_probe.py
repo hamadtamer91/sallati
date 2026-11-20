@@ -18,7 +18,7 @@ UA = "SallatiPriceBot/0.1 (price comparison for Lebanon)"
 CLAUSE = re.compile(
     r"[^.]{0,200}(scrap|robot|crawl|automat|spider|data.?min|harvest|extract|reproduc|copy|commercial|"
     r"mirror|frame|aggregat|استخراج|نسخ|تجاري)[^.]{0,200}\.", re.I)
-TERMS_LINK = re.compile(r'href="([^"]*(?:term|condition|legal|policy|disclaimer|usage|شروط)[^"]*)"', re.I)
+TERMS_LINK = re.compile(r'href="([^"]*(?:terms|condition|legal|disclaimer|terms-of-use|شروط)[^"]*)"', re.I)
 FINGERPRINTS = {
     "magento": ("Magento_", "mage/cookies", "/static/version"),
     "shopify": ("cdn.shopify.com", "Shopify.theme"),
@@ -104,9 +104,60 @@ def survey(base: str) -> None:
             print(f"== sitemap {sm}: HTTP {r.status_code} :: {r.text[:400]!r}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and sys.argv[1:2] != ["--pages"]:
     for site in sys.argv[1:]:
         try:
             survey(site)
         except Exception as e:  # keep going with the other sites
             print(f"!! {site} failed: {e!r}")
+
+
+def pages(urls: list[str]) -> None:
+    """Second pass: read specific pages (terms text, a listing page's price structure)."""
+    c = httpx.Client(headers={"User-Agent": UA, "Accept-Language": "en,ar"}, timeout=40, follow_redirects=True)
+    robots: dict[str, Robots] = {}
+    for url in urls:
+        host = "{0.scheme}://{0.netloc}".format(urlsplit(url))
+        if host not in robots:
+            try:
+                r = c.get(host + "/robots.txt")
+                robots[host] = Robots(r.text if r.status_code < 400 else "", UA)
+            except httpx.HTTPError as e:
+                print(f"\n#### {url}: robots ERROR {e!r}")
+                continue
+        if not robots[host].allowed(url):
+            print(f"\n#### {url}: SKIPPED (robots.txt)")
+            continue
+        time.sleep(2)
+        try:
+            r = c.get(url)
+        except httpx.HTTPError as e:
+            print(f"\n#### {url}: ERROR {e!r}")
+            continue
+        html = r.text
+        print(f"\n#### {url} HTTP {r.status_code} bytes={len(html)}")
+        if url.endswith(".xml"):
+            locs = re.findall(r"<loc>([^<]+)</loc>", html)
+            print(f"   {len(locs)} urls; samples:", locs[:3], [u for u in locs if re.search(r"term|condition|legal|polic", u, re.I)][:5])
+            pats = {}
+            for u in locs:
+                k = re.sub(r"/[^/]+$", "/…", urlsplit(u).path)
+                pats[k] = pats.get(k, 0) + 1
+            print("   path patterns:", sorted(pats.items(), key=lambda x: -x[1])[:8])
+            continue
+        if re.search(r"term|condition|legal|polic", url, re.I):
+            t = text_of(html)
+            print(f"   text chars={len(t)}")
+            for m in list(CLAUSE.finditer(t))[:12]:
+                print("   -", m.group(0).strip()[:420])
+            continue
+        nd = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
+        print("   __NEXT_DATA__:", len(nd.group(1)) if nd else None,
+              "| price-ish json keys:", sorted(set(re.findall(r'"(\w*[Pp]rice\w*)"\s*:', html)))[:12])
+        i = min([p for p in (html.find("$"), html.find("LBP"), html.find("ل.ل")) if p > 0] or [0])
+        print("   around first price:", re.sub(r"\s+", " ", html[max(0, i - 700): i + 300]))
+
+
+if __name__ == "__main__" and sys.argv[1:2] == ["--pages"]:
+    pages(sys.argv[2:])
+    sys.exit(0)
