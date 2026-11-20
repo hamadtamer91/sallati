@@ -104,7 +104,7 @@ def survey(base: str) -> None:
             print(f"== sitemap {sm}: HTTP {r.status_code} :: {r.text[:400]!r}")
 
 
-if __name__ == "__main__" and sys.argv[1:2] != ["--pages"]:
+if __name__ == "__main__" and sys.argv[1:2] not in (["--pages"], ["--save"]):
     for site in sys.argv[1:]:
         try:
             survey(site)
@@ -160,4 +160,31 @@ def pages(urls: list[str]) -> None:
 
 if __name__ == "__main__" and sys.argv[1:2] == ["--pages"]:
     pages(sys.argv[2:])
+    sys.exit(0)
+
+
+def save(folder: str, urls: list[str]) -> None:
+    """Save raw pages (robots-checked, 3 s apart) so they can be studied offline."""
+    import pathlib
+    out = pathlib.Path(folder)
+    out.mkdir(parents=True, exist_ok=True)
+    c = httpx.Client(headers={"User-Agent": UA, "Accept-Language": "en,ar"}, timeout=40, follow_redirects=True)
+    robots: dict[str, Robots] = {}
+    for i, url in enumerate(urls):
+        host = "{0.scheme}://{0.netloc}".format(urlsplit(url))
+        if host not in robots:
+            r = c.get(host + "/robots.txt")
+            robots[host] = Robots(r.text if r.status_code < 400 else "", UA)
+        if not robots[host].allowed(url):
+            print("SKIPPED (robots)", url)
+            continue
+        time.sleep(3)
+        r = c.get(url)
+        name = f"{i:02d}_" + re.sub(r"[^A-Za-z0-9]+", "_", urlsplit(url).path + "_" + urlsplit(url).query)[:80] + ".html"
+        (out / name).write_text(r.text, encoding="utf-8")
+        print(r.status_code, len(r.text), url, "->", name)
+
+
+if __name__ == "__main__" and sys.argv[1:2] == ["--save"]:
+    save(sys.argv[2], sys.argv[3:])
     sys.exit(0)
