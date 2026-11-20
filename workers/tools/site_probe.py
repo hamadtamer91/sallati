@@ -204,7 +204,7 @@ def ajax(folder: str, page_url: str, post_url: str, *pairs: str) -> None:
     time.sleep(2)
     page = c.get(page_url)
     token = re.search(r'<meta name="csrf-token" content="([^"]+)"', page.text)
-    data = [tuple(p.split("=", 1)) for p in pairs]
+    data = dict(p.split("=", 1) for p in pairs)
     time.sleep(2)
     r = c.post(post_url, data=data, headers={"X-CSRF-TOKEN": token.group(1) if token else "",
                                              "X-Requested-With": "XMLHttpRequest", "Referer": page_url})
