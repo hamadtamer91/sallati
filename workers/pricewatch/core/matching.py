@@ -105,7 +105,10 @@ class ProductMatcher:
             if score >= accept:
                 return MatchResult(best.id, "attributes", round(score / 100, 3), alternatives=alts)
             if score >= self.review:
-                return MatchResult(best.id, "fuzzy", round(score / 100, 3), True, "low_name_similarity", alternatives=alts)
+                # Similar but not clearly the same (e.g. "Toast Whole Grain" vs "Toast Original"):
+                # never merge automatically — create a separate product and flag a possible duplicate.
+                return MatchResult(None, "new", round(score / 100, 3), True, "possible_duplicate",
+                                   create_new=allow_create, alternatives=alts)
         if not n.brand_norm:
             # no brand + no close match: create, but let a human confirm
             return MatchResult(None, "new", 0.5, True, "no_brand", create_new=allow_create, alternatives=alts)

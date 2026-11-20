@@ -189,7 +189,7 @@ export const demoSource: DataSource = {
       }
     }
     return filter.sort === "ending"
-      ? deals.sort((a, b) => a.validUntil.localeCompare(b.validUntil))
+      ? deals.sort((a, b) => (a.validUntil ?? "9999").localeCompare(b.validUntil ?? "9999"))
       : deals.sort((a, b) => (b.discountPct ?? 0) - (a.discountPct ?? 0));
   },
 

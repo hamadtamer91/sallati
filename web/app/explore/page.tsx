@@ -88,7 +88,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                     <div className="text-sm text-stone-600">{usd(d.regularPriceUsd)} <span className="text-xs text-stone-400">/ 1</span></div>
                   )}
                   <div className="mt-2 flex justify-between text-xs text-stone-500">
-                    <span>{t.validUntil} {d.validUntil}</span>
+                    <span>{d.validUntil ? `${t.validUntil} ${d.validUntil}` : t.sitePriceNow}</span>
                     <span>{d.source === "flyer" ? t.fromFlyer : t.fromSite}</span>
                   </div>
                 </div>

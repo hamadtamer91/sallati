@@ -43,7 +43,7 @@ export interface Deal {
   getQty: number | null;
   discountPct: number | null;
   validFrom: string;
-  validUntil: string;
+  validUntil: string | null; // null = discount shown on the store's site, no end date
   source: "flyer" | "site";
 }
 

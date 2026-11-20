@@ -129,3 +129,12 @@ def test_matching_by_barcode_wins():
     b = _n("حليب نيدو بودرة ٩٠٠ غ", gtin="7613030000907")
     r = m.match(b)
     assert (r.canonical_id, r.method, r.confidence) == (cid, "barcode", 1.0)
+
+
+def test_similar_names_are_not_merged():
+    repo = MemoryRepository()
+    m = ProductMatcher(repo.catalog_index())
+    a = _n("Toast Original 200g", brand="Lighter Line")
+    repo.create_canonical(a, a.raw.name, "Lighter Line", None, None)
+    r = m.match(_n("Toast Whole Grain 200g", brand="Lighter Line"))
+    assert r.canonical_id is None and r.create_new and r.review_reason == "possible_duplicate"

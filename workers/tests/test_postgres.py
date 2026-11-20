@@ -41,6 +41,9 @@ async def test_full_flow_on_postgres(repo):
     assert repo.conn.execute("select count(*) c from price_history").fetchone()["c"] == hist_before
 
     c = repo.conn
+    # site discount (Almarai 1.95 instead of 2.25 on Cedar's site) shows on the explore page
+    site = c.execute("select * from explore_deals() where source = 'site'").fetchall()
+    assert any(r["title"].startswith("Almarai") and r["valid_until"] is None and r["discount_pct"] > 10 for r in site)
     nido = c.execute("select id from canonical_products where gtin='07613030000907'").fetchone()["id"]
     rows = c.execute("select * from offers_for_basket(%s, 33.8886, 35.5300, 10)", ([nido],)).fetchall()
     assert {r["branch_name_en"] for r in rows} == {"Cedar Mart Achrafieh", "Cedar Mart Jdeideh", "Bayt Market Dekwaneh"}
