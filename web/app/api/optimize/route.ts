@@ -49,6 +49,8 @@ export async function POST(req: Request) {
   if (typeof body === "string") return NextResponse.json({ error: body }, { status: 400 });
   try {
     const ds = getDataSource();
+    const stale = body.items.map((i) => i.productId).filter((id) => !ds.isProductId(id));
+    if (stale.length) return NextResponse.json({ error: "basket_outdated", stale }, { status: 409 });
     const market = await ds.market();
     const rate = market.usdLbpRate;
     const pricePer20L = body.fuel.pricePer20L || market.fuel95Per20lLbp || 2_800_000;

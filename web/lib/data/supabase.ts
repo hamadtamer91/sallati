@@ -3,6 +3,8 @@ import type { Branch, LatLng, Offer, PromoKind, Substitute } from "../optimizer"
 import type { DataSource, Deal, FlyerRow, Named, ProductSummary, RunRow } from "./types";
 import { sizeLabel } from "./types";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 
 function publicClient(): SupabaseClient {
@@ -37,7 +39,11 @@ export function supabaseSource(): DataSource {
       }));
     },
 
+    isProductId: (id: string) => UUID.test(id),
+
     async branchesForBasket(productIds: string[], origin: LatLng, radiusKm: number): Promise<Branch[]> {
+      productIds = productIds.filter((id) => UUID.test(id));
+      if (!productIds.length) return [];
       const rows = check(await db.rpc("offers_for_basket", {
         p_product_ids: productIds, p_lat: origin.lat, p_lng: origin.lng, p_radius_km: radiusKm,
       })) as any[];
@@ -65,6 +71,7 @@ export function supabaseSource(): DataSource {
     },
 
     async substitutes(productIds) {
+      productIds = productIds.filter((id) => UUID.test(id));
       if (!productIds.length) return {};
       const rows = check(await db.rpc("product_substitutes", { p_product_ids: productIds })) as any[];
       const out: Record<string, Substitute[]> = {};

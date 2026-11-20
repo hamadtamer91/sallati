@@ -125,6 +125,7 @@ const CATEGORIES: Named[] = [
 
 export const demoSource: DataSource = {
   mode: "demo",
+  isProductId: (id: string) => PRODUCTS.some((p) => p.id === id),
 
   async searchProducts(q, limit = 20) {
     const nq = norm(q);

@@ -87,6 +87,8 @@ export interface DealFilter {
 
 export interface DataSource {
   mode: "demo" | "supabase";
+  /** False for ids from another catalog (e.g. a basket saved while the site ran on demo data). */
+  isProductId(id: string): boolean;
   searchProducts(q: string, limit?: number): Promise<ProductSummary[]>;
   branchesForBasket(productIds: string[], origin: LatLng, radiusKm: number): Promise<Branch[]>;
   substitutes(productIds: string[]): Promise<Record<string, Substitute[]>>;

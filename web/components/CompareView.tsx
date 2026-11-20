@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fmtNote } from "@/lib/i18n";
 import { money } from "@/lib/money";
 import type { OptimizeResult, Plan, ScenarioKind } from "@/lib/optimizer";
-import { useBasket, useSettings } from "@/lib/store";
+import { basketStore, useBasket, useSettings } from "@/lib/store";
 import { useLang } from "./LangProvider";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-xl bg-stone-100" /> });
@@ -21,6 +21,7 @@ export function CompareView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<ScenarioKind | null>(null);
+  const [removed, setRemoved] = useState(0);
   const key = JSON.stringify([items, settings]);
 
   useEffect(() => {
@@ -40,10 +41,19 @@ export function CompareView() {
       }),
     })
       .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
-        return r.json();
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 409 && Array.isArray(j.stale)) {
+          // products saved from an older catalog: drop them; the basket change re-runs this effect
+          const stale = new Set<string>(j.stale);
+          setRemoved((n) => n + stale.size);
+          basketStore.set((prev) => prev.filter((i) => !stale.has(i.productId)));
+          return null;
+        }
+        if (!r.ok) throw new Error(j.error ?? r.statusText);
+        return j;
       })
-      .then((d: Response) => {
+      .then((d: Response | null) => {
+        if (!d) return;
         setData(d);
         setSelected(d.result.recommended);
       })
@@ -53,7 +63,10 @@ export function CompareView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  if (!items.length) return <Empty text={t.needBasket} />;
+  const notice = removed > 0 && (
+    <p className="card mb-4 border-amber-300 bg-amber-50 text-amber-900">{t.staleRemoved.replace("{n}", String(removed))}</p>
+  );
+  if (!items.length) return <>{notice}<Empty text={t.needBasket} /></>;
   if (!settings.origin) return <Empty text={t.needLocation} />;
   if (loading && !data) return <div className="card animate-pulse py-16 text-center text-stone-500">{t.calculating}</div>;
   if (error) return <Empty text={`${t.errorTryAgain} (${error})`} />;
@@ -65,6 +78,7 @@ export function CompareView() {
 
   return (
     <div className="space-y-5">
+      {notice}
       {result.unavailable.length > 0 && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
           <b>{t.unavailable}:</b> {result.unavailable.map((u) => u.name).join("، ")}
