@@ -104,7 +104,7 @@ def survey(base: str) -> None:
             print(f"== sitemap {sm}: HTTP {r.status_code} :: {r.text[:400]!r}")
 
 
-if __name__ == "__main__" and sys.argv[1:2] not in (["--pages"], ["--save"]):
+if __name__ == "__main__" and sys.argv[1:2] not in (["--pages"], ["--save"], ["--ajax"]):
     for site in sys.argv[1:]:
         try:
             survey(site)
@@ -187,4 +187,32 @@ def save(folder: str, urls: list[str]) -> None:
 
 if __name__ == "__main__" and sys.argv[1:2] == ["--save"]:
     save(sys.argv[2], sys.argv[3:])
+    sys.exit(0)
+
+
+def ajax(folder: str, page_url: str, post_url: str, *pairs: str) -> None:
+    """Open a page (cookies + Laravel CSRF token), then POST like the page's own script does."""
+    import pathlib
+    out = pathlib.Path(folder)
+    out.mkdir(parents=True, exist_ok=True)
+    c = httpx.Client(headers={"User-Agent": UA, "Accept-Language": "en,ar"}, timeout=40, follow_redirects=True)
+    host = "{0.scheme}://{0.netloc}".format(urlsplit(page_url))
+    rules = Robots(c.get(host + "/robots.txt").text, UA)
+    if not (rules.allowed(page_url) and rules.allowed(post_url)):
+        print("SKIPPED (robots)")
+        return
+    time.sleep(2)
+    page = c.get(page_url)
+    token = re.search(r'<meta name="csrf-token" content="([^"]+)"', page.text)
+    data = [tuple(p.split("=", 1)) for p in pairs]
+    time.sleep(2)
+    r = c.post(post_url, data=data, headers={"X-CSRF-TOKEN": token.group(1) if token else "",
+                                             "X-Requested-With": "XMLHttpRequest", "Referer": page_url})
+    name = re.sub(r"[^A-Za-z0-9]+", "_", urlsplit(post_url).path + "_" + "_".join(pairs))[:90] + ".json"
+    (out / name).write_text(r.text, encoding="utf-8")
+    print(r.status_code, len(r.text), post_url, pairs, "->", name)
+
+
+if __name__ == "__main__" and sys.argv[1:2] == ["--ajax"]:
+    ajax(*sys.argv[2:])
     sys.exit(0)
