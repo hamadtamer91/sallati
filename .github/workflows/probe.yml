@@ -1,0 +1,17 @@
+name: probe
+# Manual, read-only reconnaissance of a store website before writing its adapter.
+on:
+  workflow_dispatch:
+    inputs:
+      base: { description: "store website", default: "https://www.spinneyslebanon.com" }
+      store: { description: "Magento store code", default: "default" }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install httpx
+      - run: python workers/tools/site_probe.py "${{ inputs.base }}" "${{ inputs.store }}"
