@@ -14,6 +14,8 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install -e workers
       - run: python workers/tools/site_probe.py ${{ inputs.sites }}
-      - uses: actions/upload-artifact@v4
+      - name: Print saved pages (gzip+base64) for offline study
         if: always()
-        with: { name: pages, path: pages, if-no-files-found: ignore, retention-days: 3 }
+        run: |
+          [ -d pages ] || exit 0
+          for f in pages/*; do echo "==FILE $(basename "$f")"; gzip -9c "$f" | base64 -w0; echo; done
