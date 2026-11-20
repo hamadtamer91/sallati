@@ -185,7 +185,7 @@ export const demoSource: DataSource = {
           percentOff: promo.percentOff ?? null, buyQty: promo.buyQty ?? null, getQty: promo.getQty ?? null,
           discountPct: Math.round((1 - unit / o.priceUsd) * 1000) / 10,
           validFrom: plusDays(-3), validUntil: plusDays(pid.length % 2 ? 4 : 10),
-          source: c.id === "port" || c.id === "bayt" ? "flyer" : "site",
+          source: c.id === "port" || c.id === "bayt" ? "flyer" : "site", bonusLabel: null,
         });
       }
     }

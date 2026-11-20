@@ -44,6 +44,17 @@ async def test_full_flow_on_postgres(repo):
     # site discount (Almarai 1.95 instead of 2.25 on Cedar's site) shows on the explore page
     site = c.execute("select * from explore_deals() where source = 'site'").fetchall()
     assert any(r["title"].startswith("Almarai") and r["valid_until"] is None and r["discount_pct"] > 10 for r in site)
+    # "free extra" offers written in the product name; "gluten free" is not an offer
+    a, b = c.execute("""select distinct sp.id, sp.raw_name from source_products sp
+                          join product_offers o on o.source_product_id = sp.id
+                          where o.in_stock and not o.stale and o.regular_price_usd is null
+                            and not exists (select 1 from promotions p where p.canonical_product_id = o.canonical_product_id)
+                          order by sp.raw_name limit 2""").fetchall()
+    c.execute("update source_products set raw_name = 'EGYPTIAN RICE+500g FREE' where id = %s", (a["id"],))
+    c.execute("update source_products set raw_name = 'TAGLIATELLE GLUTEN FREE' where id = %s", (b["id"],))
+    bonus = c.execute("select * from explore_deals(p_limit => 200) where promo_type = 'bonus'").fetchall()
+    assert [r["bonus_label"] for r in bonus] == ["+500g FREE"]
+    assert bonus[0]["promo_price_usd"] > 0 and bonus[0]["valid_until"] is None
     nido = c.execute("select id from canonical_products where gtin='07613030000907'").fetchone()["id"]
     rows = c.execute("select * from offers_for_basket(%s, 33.8886, 35.5300, 10)", ([nido],)).fetchall()
     assert {r["branch_name_en"] for r in rows} == {"Cedar Mart Achrafieh", "Cedar Mart Jdeideh", "Bayt Market Dekwaneh"}

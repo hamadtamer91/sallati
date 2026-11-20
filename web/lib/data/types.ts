@@ -35,7 +35,7 @@ export interface Deal {
   brand: string | null;
   sizeText: string | null;
   category: string | null;
-  promoType: PromoKind;
+  promoType: PromoKind | "bonus";
   promoPriceUsd: number | null;
   regularPriceUsd: number | null;
   percentOff: number | null;
@@ -45,6 +45,8 @@ export interface Deal {
   validFrom: string;
   validUntil: string | null; // null = discount shown on the store's site, no end date
   source: "flyer" | "site";
+  /** "Free extra" written in the product name, e.g. "+500g FREE" (promoType "bonus"). */
+  bonusLabel: string | null;
 }
 
 export interface RunRow {

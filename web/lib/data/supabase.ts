@@ -110,7 +110,7 @@ export function supabaseSource(): DataSource {
         nameEn: r.name_en, nameAr: r.name_ar, brand: r.brand, sizeText: r.size_text, category: r.category_slug,
         promoType: r.promo_type, promoPriceUsd: num(r.promo_price_usd), regularPriceUsd: num(r.regular_price_usd),
         percentOff: num(r.percent_off), buyQty: r.buy_qty, getQty: r.get_qty, discountPct: num(r.discount_pct),
-        validFrom: r.valid_from, validUntil: r.valid_until, source: r.source,
+        validFrom: r.valid_from, validUntil: r.valid_until, source: r.source, bonusLabel: r.bonus_label ?? null,
       }));
     },
 

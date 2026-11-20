@@ -13,6 +13,8 @@ function promoLabel(d: Deal, t: Dict, lang: Lang): string {
       return lang === "ar" ? `${d.buyQty} بـ ${usd(d.promoPriceUsd ?? 0)}` : `${d.buyQty} for ${usd(d.promoPriceUsd ?? 0)}`;
     case "bogo":
       return `${d.buyQty}+${d.getQty} ${t.free}`;
+    case "bonus":
+      return t.freeExtra;
     default:
       return d.discountPct ? `-${Math.round(d.discountPct)}%` : "";
   }
@@ -74,6 +76,11 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 </div>
                 <h2 className="font-semibold leading-snug">{(lang === "ar" ? d.nameAr || d.nameEn : d.nameEn || d.nameAr) || d.title}</h2>
                 {d.brand && <div className="text-xs text-stone-500">{d.brand}</div>}
+                {d.bonusLabel && (
+                  <div className="mt-1 inline-flex w-fit rounded-md bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-900" dir="ltr">
+                    🎁 {d.bonusLabel}
+                  </div>
+                )}
                 <div className="mt-auto pt-3">
                   {price != null && (
                     <div className="flex flex-wrap items-baseline gap-x-2">
